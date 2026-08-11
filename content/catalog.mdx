@@ -1,0 +1,58 @@
+---
+# ============================================================
+# Sangeet Online — content file
+# ही फक्त file edit करा. Save → refresh / redeploy.
+# ============================================================
+#
+# YouTube: पूर्ण URL किंवा फक्त 11-character ID दोन्ही चालतात.
+# महत्त्वाचे: video embed allow असणे आवश्यक — "Watch on YouTube" फक्त
+# चालणारे / embedding disabled videos इथे play होणार नाहीत.
+# backgroundType: image | video
+# background: /images/... किंवा /backgrounds/... (public folder)
+#
+# नवीन category जोडायची असेल तर stations: खाली नवीन block कॉपी करा.
+
+stations:
+  - id: swatantrya-din
+    label: "ऐ वतन तेरे लिए"
+    background: "/images/tiranga.jpg"
+    backgroundType: image
+    poster: ""
+    overlay: "rgba(10, 14, 12, 0.2)"
+    songs:
+      - title: "ऐ मेरे वतन के लोगों"
+        artist: "Lata Mangeshkar"
+        youtubeId: "46kMhdOoeHM"
+        cover: "/covers/default.svg"
+      - title: "Dil Diya Hai Jaan Bhi Denge"
+        artist: "Traditional"
+        youtubeId: "hm3-qJs0dO4"
+        cover: "/covers/default.svg"
+      - title: "Yeh Desh Hai Veer Jawanon ka"
+        artist: "Traditional"
+        youtubeId: "yRKE_4xwfag"
+        cover: "/covers/default.svg"
+      - title: "जहाँ डाल-डाल पर सोने की चिड़िया"
+        artist: "Traditional"
+        youtubeId: "CN4W1kiys7g"
+        cover: "/covers/default.svg"
+      - title: "Ae Watan"
+        artist: "Traditional"
+        youtubeId: "LbVw0agyJoE"
+        cover: "/covers/default.svg"
+      - title: "Bharat Humko Jaan Se Pyara Hai"
+        artist: "Traditional"
+        youtubeId: "7q5DUIgLs_4"
+        cover: "/covers/default.svg"
+      - title: "Yeh Jo Des Hai Tera"
+        artist: "Traditional"
+        youtubeId: "i7hVzQTCF-o"
+        cover: "/covers/default.svg"
+---
+
+# कसे अपडेट करायचे
+
+1. वर `stations` मध्ये category / songs edit करा.
+2. `youtubeId` मध्ये YouTube link किंवा ID टाका.
+3. Background image/video `public/` मध्ये ठेवून path द्या.
+4. Save करा → local वर refresh, production वर git push + deploy.

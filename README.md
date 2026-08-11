@@ -1,16 +1,6 @@
 # Sangeet Online
 
-Minimal Marathi music discovery experience for [sangeet.online](https://sangeet.online).
-
-Choose a mood → discover a song → listen.
-
-## Stack
-
-- Next.js (App Router)
-- JavaScript
-- Tailwind CSS
-- YouTube IFrame Player API
-- Static song data in `/data/songs.js`
+Minimal Marathi music radio for [sangeet.online](https://sangeet.online).
 
 ## Develop
 
@@ -21,10 +11,35 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Deploy
+## Update songs & categories
 
-Deploy on Vercel. Set the production domain to `sangeet.online`.
+Edit only this file:
 
-## Add songs
+**[`content/catalog.mdx`](content/catalog.mdx)**
 
-Edit `data/songs.js` and add objects with `title`, `artist`, `mood`, and `youtubeId`.
+Example:
+
+```yaml
+stations:
+  - id: swatantrya-din
+    label: "स्वातंत्र्य दिन"
+    background: "/backgrounds/utsah.jpg"
+    backgroundType: image
+    songs:
+      - title: "गाण्याचे नाव"
+        artist: "कलाकार"
+        youtubeId: "xxxxxxxxxxx"
+```
+
+- `youtubeId`: पूर्ण YouTube URL किंवा 11-character ID
+- `backgroundType`: `image` किंवा `video`
+- Background files `public/` मध्ये ठेवा
+- Save → refresh (local) / git push + redeploy (Vercel)
+
+## Deploy on Vercel
+
+1. Import GitHub repo on Vercel
+2. Add domain `sangeet.online`
+3. Deploy
+
+No database or admin panel required.

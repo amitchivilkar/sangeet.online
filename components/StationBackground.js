@@ -1,42 +1,63 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getStation } from "@/data/stations";
 
-function layerFromStation(stationId) {
-  const config = stationId ? getStation(stationId) : null;
+function layerFromStation(station) {
   return {
-    key: stationId || "home",
-    src: config?.background ?? null,
-    overlay: config?.overlay ?? "rgba(247, 244, 239, 1)",
+    key: station?.id || "home",
+    src: station?.background ?? null,
+    type: station?.backgroundType ?? "image",
+    poster: station?.poster ?? null,
+    overlay: station?.overlay ?? "rgba(247, 244, 239, 1)",
   };
+}
+
+function BackgroundMedia({ layer }) {
+  if (!layer.src) {
+    return <div className="mood-bg__plain" />;
+  }
+
+  if (layer.type === "video") {
+    return (
+      <video
+        className="mood-bg__image mood-bg__video"
+        src={layer.src}
+        poster={layer.poster || undefined}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+      />
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={layer.src} alt="" className="mood-bg__image" />
+  );
 }
 
 function BackgroundLayer({ layer, className }) {
   return (
     <div className={`mood-bg__layer ${className}`}>
-      {layer.src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={layer.src} alt="" className="mood-bg__image" />
-      ) : (
-        <div className="mood-bg__plain" />
-      )}
+      <BackgroundMedia layer={layer} />
       <div
         className="mood-bg__overlay"
-        style={{ background: layer.overlay }}
+        style={layer.src ? undefined : { background: layer.overlay }}
       />
     </div>
   );
 }
 
-export default function StationBackground({ stationId }) {
-  const [current, setCurrent] = useState(() => layerFromStation(stationId));
+export default function StationBackground({ station }) {
+  const [current, setCurrent] = useState(() => layerFromStation(station));
   const [previous, setPrevious] = useState(null);
-  const nextKey = stationId || "home";
+  const nextKey = station?.id || "home";
 
   if (nextKey !== current.key) {
     setPrevious(current);
-    setCurrent(layerFromStation(stationId));
+    setCurrent(layerFromStation(station));
   }
 
   useEffect(() => {

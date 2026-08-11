@@ -1,22 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Brand from "@/components/Brand";
 import MediaPlayer from "@/components/MediaPlayer";
 import StationBackground from "@/components/StationBackground";
-import StationSelector from "@/components/StationSelector";
 import StatusBar from "@/components/StatusBar";
 import YouTubePlayer from "@/components/YouTubePlayer";
-import { getStation } from "@/data/stations";
 import { pickRandomSong } from "@/data/songs";
 
 const YT_PLAYING = 1;
 const YT_PAUSED = 2;
 const YT_ENDED = 0;
 
-export default function MusicExperience() {
-  const [selectedGroup, setSelectedGroup] = useState(null);
-  const [selectedStation, setSelectedStation] = useState(null);
+function getAdjacentStation(stations, stationId, direction = 1) {
+  if (!stations?.length) return null;
+  const index = stations.findIndex((station) => station.id === stationId);
+  if (index === -1) return stations[0];
+  const nextIndex = (index + direction + stations.length) % stations.length;
+  return stations[nextIndex];
+}
+
+export default function MusicExperience({ stations = [], songs = [] }) {
+  const defaultStationId = stations[0]?.id ?? null;
+  const [selectedStation, setSelectedStation] = useState(defaultStationId);
   const [song, setSong] = useState(null);
   const [history, setHistory] = useState([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -29,6 +35,14 @@ export default function MusicExperience() {
   const pollRef = useRef(null);
   const transitionTimerRef = useRef(null);
   const songRef = useRef(null);
+  const bootedRef = useRef(false);
+
+  const currentStation = useMemo(
+    () => stations.find((station) => station.id === selectedStation) ?? null,
+    [selectedStation, stations]
+  );
+
+  const showCategoryNav = stations.length > 1;
 
   useEffect(() => {
     songRef.current = song;
@@ -96,43 +110,33 @@ export default function MusicExperience() {
 
   const loadSongForStation = useCallback(
     (stationId, excludeId = null, options = {}) => {
-      const nextSong = pickRandomSong(stationId, excludeId);
+      if (!stationId) return;
+      const nextSong = pickRandomSong(songs, stationId, excludeId);
       if (!nextSong) return;
       applySong(nextSong, options);
     },
-    [applySong]
+    [applySong, songs]
   );
 
-  const handleSelectGroup = useCallback((groupId) => {
-    setSelectedGroup(groupId);
-  }, []);
+  useEffect(() => {
+    if (!defaultStationId || bootedRef.current) return;
+    bootedRef.current = true;
+    loadSongForStation(defaultStationId);
+  }, [defaultStationId, loadSongForStation]);
 
-  const handleBackToGroups = useCallback(() => {
-    setSelectedGroup(null);
-  }, []);
-
-  const handleSelectStation = useCallback(
-    (stationId) => {
-      setSelectedStation(stationId);
+  const handleShiftCategory = useCallback(
+    (direction) => {
+      if (!selectedStation || stations.length < 2) return;
+      const next = getAdjacentStation(stations, selectedStation, direction);
+      if (!next || next.id === selectedStation) return;
       setHistory([]);
       setPlayerReady(false);
       playerRef.current = null;
-      loadSongForStation(stationId);
+      setSelectedStation(next.id);
+      loadSongForStation(next.id);
     },
-    [loadSongForStation]
+    [loadSongForStation, selectedStation, stations]
   );
-
-  const handleChangeStation = useCallback(() => {
-    clearPoll();
-    setSelectedStation(null);
-    setSong(null);
-    setHistory([]);
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setPlayerReady(false);
-    playerRef.current = null;
-  }, [clearPoll]);
 
   const handleNext = useCallback(() => {
     if (!selectedStation || !song) return;
@@ -200,48 +204,61 @@ export default function MusicExperience() {
     }
   }, []);
 
-  const isListening = Boolean(selectedStation);
-  const stationLabel = getStation(selectedStation)?.label ?? selectedStation;
+  useEffect(() => {
+    if (!showCategoryNav) return undefined;
+
+    function onKeyDown(event) {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        handleShiftCategory(-1);
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        handleShiftCategory(1);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleShiftCategory, showCategoryNav]);
+
+  const stationLabel = currentStation?.label ?? selectedStation;
 
   return (
-    <div className={`experience ${isListening ? "experience--listening" : ""}`}>
-      <StationBackground stationId={selectedStation} />
+    <div className="experience experience--listening">
+      <StationBackground station={currentStation} />
 
       <div className="experience__content">
-        <StatusBar
-          inverted={isListening}
-          rightSlot={
-            isListening ? (
-              <button
-                type="button"
-                className="change-mood"
-                onClick={handleChangeStation}
-                aria-label="बदल"
-              >
-                बदल
-              </button>
-            ) : (
-              <Brand inverted={false} compact />
-            )
-          }
-        />
+        <StatusBar inverted rightSlot={<Brand inverted compact />} />
 
-        <StationSelector
-          visible={!isListening}
-          selectedGroup={selectedGroup}
-          onSelectGroup={handleSelectGroup}
-          onSelectStation={handleSelectStation}
-          onBack={handleBackToGroups}
-        />
+        <div className="experience__stage">
+          {showCategoryNav && (
+            <button
+              type="button"
+              className="category-nav category-nav--prev"
+              onClick={() => handleShiftCategory(-1)}
+              aria-label="मागील category"
+            >
+              ‹
+            </button>
+          )}
 
-        {isListening && (
-          <div className="experience__stage">
-            <h1 className="experience__mood">{stationLabel}</h1>
-          </div>
-        )}
+          <h1 className="experience__mood">{stationLabel}</h1>
+
+          {showCategoryNav && (
+            <button
+              type="button"
+              className="category-nav category-nav--next"
+              onClick={() => handleShiftCategory(1)}
+              aria-label="पुढील category"
+            >
+              ›
+            </button>
+          )}
+        </div>
       </div>
 
-      {isListening && song && (
+      {song && (
         <MediaPlayer
           song={song}
           isPlaying={isPlaying}
