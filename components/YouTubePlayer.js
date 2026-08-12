@@ -32,6 +32,7 @@ function loadYouTubeAPI() {
 
 export default function YouTubePlayer({
   videoId,
+  playlistId,
   onReady,
   onStateChange,
   onError,
@@ -48,32 +49,48 @@ export default function YouTubePlayer({
     let cancelled = false;
 
     async function init() {
-      if (!videoId || !containerRef.current) return;
+      if ((!playlistId && !videoId) || !containerRef.current) return;
 
       const YT = await loadYouTubeAPI();
       if (cancelled) return;
 
-      if (playerRef.current?.loadVideoById) {
-        playerRef.current.loadVideoById({ videoId });
+      if (playerRef.current?.loadPlaylist || playerRef.current?.loadVideoById) {
+        if (playlistId && playerRef.current.loadPlaylist) {
+          playerRef.current.loadPlaylist({
+            list: playlistId,
+            listType: "playlist",
+            index: 0,
+          });
+        } else if (videoId && playerRef.current.loadVideoById) {
+          playerRef.current.loadVideoById({ videoId });
+        }
         return;
       }
 
+      const playerVars = {
+        autoplay: 1,
+        controls: 0,
+        disablekb: 1,
+        fs: 0,
+        modestbranding: 1,
+        playsinline: 1,
+        rel: 0,
+        enablejsapi: 1,
+        origin:
+          typeof window !== "undefined" ? window.location.origin : undefined,
+      };
+
+      if (playlistId) {
+        playerVars.listType = "playlist";
+        playerVars.list = playlistId;
+        playerVars.loop = 1;
+      }
+
       playerRef.current = new YT.Player(containerRef.current, {
-        videoId,
+        ...(videoId && !playlistId ? { videoId } : {}),
         width: 320,
         height: 180,
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          rel: 0,
-          enablejsapi: 1,
-          origin:
-            typeof window !== "undefined" ? window.location.origin : undefined,
-        },
+        playerVars,
         events: {
           onReady: (event) => {
             callbacksRef.current.onReady?.(event.target);
@@ -98,7 +115,7 @@ export default function YouTubePlayer({
     return () => {
       cancelled = true;
     };
-  }, [videoId]);
+  }, [playlistId, videoId]);
 
   useEffect(() => {
     return () => {

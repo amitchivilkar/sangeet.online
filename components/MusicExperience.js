@@ -6,11 +6,12 @@ import MediaPlayer from "@/components/MediaPlayer";
 import StationBackground from "@/components/StationBackground";
 import StatusBar from "@/components/StatusBar";
 import YouTubePlayer from "@/components/YouTubePlayer";
-import { pickRandomSong } from "@/data/songs";
+import { songFromPlayer } from "@/data/songs";
 
 const YT_PLAYING = 1;
 const YT_PAUSED = 2;
 const YT_ENDED = 0;
+const YT_CUED = 5;
 
 function getAdjacentStation(stations, stationId, direction = 1) {
   if (!stations?.length) return null;
@@ -20,11 +21,21 @@ function getAdjacentStation(stations, stationId, direction = 1) {
   return stations[nextIndex];
 }
 
-export default function MusicExperience({ stations = [], songs = [] }) {
+function isTypingTarget(target) {
+  const tag = target?.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    target?.isContentEditable
+  );
+}
+
+export default function MusicExperience({ stations = [] }) {
   const defaultStationId = stations[0]?.id ?? null;
   const [selectedStation, setSelectedStation] = useState(defaultStationId);
   const [song, setSong] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [playlistIndex, setPlaylistIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -34,19 +45,15 @@ export default function MusicExperience({ stations = [], songs = [] }) {
   const playerRef = useRef(null);
   const pollRef = useRef(null);
   const transitionTimerRef = useRef(null);
-  const songRef = useRef(null);
-  const bootedRef = useRef(false);
+  const videoIdRef = useRef(null);
 
   const currentStation = useMemo(
     () => stations.find((station) => station.id === selectedStation) ?? null,
     [selectedStation, stations]
   );
 
+  const playlistId = currentStation?.youtubePlaylist || "";
   const showCategoryNav = stations.length > 1;
-
-  useEffect(() => {
-    songRef.current = song;
-  }, [song]);
 
   const clearPoll = useCallback(() => {
     if (pollRef.current) {
@@ -81,113 +88,113 @@ export default function MusicExperience({ stations = [], songs = [] }) {
     };
   }, [clearPoll]);
 
-  const applySong = useCallback((nextSong, { pushHistory = false } = {}) => {
-    setCurrentTime(0);
-    setDuration(0);
-    setIsPlaying(false);
-    setPlayerReady(false);
-    playerRef.current = null;
+  const syncFromPlayer = useCallback((player) => {
+    if (!player) return;
+    const next = songFromPlayer(player);
+    if (!next) return;
 
-    const commit = () => {
-      if (pushHistory && songRef.current) {
-        setHistory((prev) => [...prev, songRef.current]);
+    if (next.youtubeId !== videoIdRef.current) {
+      videoIdRef.current = next.youtubeId;
+      setCurrentTime(0);
+      setTransitioning(true);
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
       }
-      setSong(nextSong);
-      setTransitioning(false);
-    };
-
-    if (!songRef.current) {
-      commit();
-      return;
+      transitionTimerRef.current = setTimeout(() => {
+        setTransitioning(false);
+      }, 280);
     }
 
-    setTransitioning(true);
-    if (transitionTimerRef.current) {
-      clearTimeout(transitionTimerRef.current);
+    setSong(next);
+
+    try {
+      const d = player.getDuration?.() || 0;
+      if (d > 0) setDuration(d);
+      const index = player.getPlaylistIndex?.();
+      if (typeof index === "number" && index >= 0) {
+        setPlaylistIndex(index);
+      }
+    } catch {
+      // ignore
     }
-    transitionTimerRef.current = setTimeout(commit, 280);
   }, []);
-
-  const loadSongForStation = useCallback(
-    (stationId, excludeId = null, options = {}) => {
-      if (!stationId) return;
-      const nextSong = pickRandomSong(songs, stationId, excludeId);
-      if (!nextSong) return;
-      applySong(nextSong, options);
-    },
-    [applySong, songs]
-  );
-
-  useEffect(() => {
-    if (!defaultStationId || bootedRef.current) return;
-    bootedRef.current = true;
-    loadSongForStation(defaultStationId);
-  }, [defaultStationId, loadSongForStation]);
 
   const handleShiftCategory = useCallback(
     (direction) => {
       if (!selectedStation || stations.length < 2) return;
       const next = getAdjacentStation(stations, selectedStation, direction);
       if (!next || next.id === selectedStation) return;
-      setHistory([]);
       setPlayerReady(false);
+      setSong(null);
+      setPlaylistIndex(0);
+      videoIdRef.current = null;
       playerRef.current = null;
       setSelectedStation(next.id);
-      loadSongForStation(next.id);
     },
-    [loadSongForStation, selectedStation, stations]
+    [selectedStation, stations]
   );
 
   const handleNext = useCallback(() => {
-    if (!selectedStation || !song) return;
-    loadSongForStation(selectedStation, song.id, { pushHistory: true });
-  }, [loadSongForStation, selectedStation, song]);
+    try {
+      playerRef.current?.nextVideo?.();
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const handlePrev = useCallback(() => {
-    if (history.length === 0) return;
-    const previous = history[history.length - 1];
-    setHistory((prev) => prev.slice(0, -1));
-    applySong(previous);
-  }, [applySong, history]);
+    try {
+      playerRef.current?.previousVideo?.();
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const handlePlayerReady = useCallback(
     (player) => {
       playerRef.current = player;
       setPlayerReady(true);
       startPoll(player);
-      try {
-        const d = player.getDuration?.() || 0;
-        if (d > 0) setDuration(d);
-      } catch {
-        // ignore
-      }
+      syncFromPlayer(player);
     },
-    [startPoll]
+    [startPoll, syncFromPlayer]
   );
 
   const handleStateChange = useCallback(
     (event) => {
       const state = event.data;
+      const player = event.target;
+      if (player) playerRef.current = player;
+
       if (state === YT_PLAYING) {
         setIsPlaying(true);
-        if (event.target) startPoll(event.target);
+        if (player) {
+          startPoll(player);
+          syncFromPlayer(player);
+        }
       } else if (state === YT_PAUSED) {
         setIsPlaying(false);
+      } else if (state === YT_CUED) {
+        if (player) syncFromPlayer(player);
       } else if (state === YT_ENDED) {
         setIsPlaying(false);
-        if (selectedStation && song) {
-          loadSongForStation(selectedStation, song.id, { pushHistory: true });
+        try {
+          player?.nextVideo?.();
+        } catch {
+          // Playlist loop may already advance.
         }
       }
     },
-    [loadSongForStation, selectedStation, song, startPoll]
+    [startPoll, syncFromPlayer]
   );
 
   const handlePlayerError = useCallback(() => {
-    if (selectedStation && song) {
-      loadSongForStation(selectedStation, song.id, { pushHistory: true });
+    try {
+      playerRef.current?.nextVideo?.();
+    } catch {
+      // ignore
     }
-  }, [loadSongForStation, selectedStation, song]);
+  }, []);
 
   const togglePlay = useCallback(() => {
     const player = playerRef.current;
@@ -205,14 +212,32 @@ export default function MusicExperience({ stations = [], songs = [] }) {
   }, []);
 
   useEffect(() => {
-    if (!showCategoryNav) return undefined;
-
     function onKeyDown(event) {
+      if (isTypingTarget(event.target)) return;
+
+      if (event.key === " " || event.code === "Space") {
+        event.preventDefault();
+        togglePlay();
+        return;
+      }
+
       if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        handlePrev();
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        handleNext();
+        return;
+      }
+
+      if (showCategoryNav && event.key === "[") {
         event.preventDefault();
         handleShiftCategory(-1);
       }
-      if (event.key === "ArrowRight") {
+      if (showCategoryNav && event.key === "]") {
         event.preventDefault();
         handleShiftCategory(1);
       }
@@ -220,9 +245,14 @@ export default function MusicExperience({ stations = [], songs = [] }) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleShiftCategory, showCategoryNav]);
+  }, [handleNext, handlePrev, handleShiftCategory, showCategoryNav, togglePlay]);
 
   const stationLabel = currentStation?.label ?? selectedStation;
+  const displaySong = song || {
+    title: stationLabel || "Sangeet Online",
+    artist: "YouTube Music",
+    youtubeId: "",
+  };
 
   return (
     <div className="experience experience--listening">
@@ -258,9 +288,9 @@ export default function MusicExperience({ stations = [], songs = [] }) {
         </div>
       </div>
 
-      {song && (
+      {playlistId && (
         <MediaPlayer
-          song={song}
+          song={displaySong}
           isPlaying={isPlaying}
           currentTime={currentTime}
           duration={duration}
@@ -269,14 +299,37 @@ export default function MusicExperience({ stations = [], songs = [] }) {
           onTogglePlay={togglePlay}
           onNext={handleNext}
           onPrev={handlePrev}
-          canGoPrev={history.length > 0}
+          canGoPrev={playerReady && playlistIndex > 0}
         />
       )}
 
-      {song && (
+      {playlistId && (
+        <a
+          className="experience__ytm"
+          href={`https://music.youtube.com/playlist?list=${playlistId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg
+            className="experience__ytm-icon"
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h6v2H7v10h10v-4h2v6H5V5z"
+            />
+          </svg>
+          YouTube Music
+        </a>
+      )}
+
+      {playlistId && (
         <YouTubePlayer
-          key={song.id}
-          videoId={song.youtubeId}
+          key={playlistId}
+          playlistId={playlistId}
           onReady={handlePlayerReady}
           onStateChange={handleStateChange}
           onError={handlePlayerError}

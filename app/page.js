@@ -6,10 +6,7 @@ export default function HomePage() {
 
   return (
     <main>
-      <MusicExperience
-        stations={catalog.stations}
-        songs={catalog.songs}
-      />
+      <MusicExperience stations={catalog.stations} />
     </main>
   );
 }

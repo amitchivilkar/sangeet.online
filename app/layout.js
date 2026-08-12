@@ -19,7 +19,7 @@ const siteUrl = "https://sangeet.online";
 
 export const metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Sangeet Online — स्वातंत्र्य दिन",
+  title: "Sangeet Online — शांत मन",
   description:
     "मराठी संगीत ऐकण्यासाठी एक साधा, सुंदर आणि curated digital experience.",
   applicationName: "Sangeet Online",
@@ -27,8 +27,8 @@ export const metadata = {
     "Marathi music",
     "Sangeet Online",
     "मराठी संगीत",
-    "स्वातंत्र्य दिन",
-    "Independence Day",
+    "शांत मन",
+    "YouTube Music",
     "sangeet.online",
   ],
   authors: [{ name: "Sangeet Online" }],
@@ -37,13 +37,13 @@ export const metadata = {
     locale: "mr_IN",
     url: siteUrl,
     siteName: "Sangeet Online",
-    title: "Sangeet Online — स्वातंत्र्य दिन",
+    title: "Sangeet Online — शांत मन",
     description:
       "मराठी संगीत ऐकण्यासाठी एक साधा, सुंदर आणि curated digital experience.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sangeet Online — स्वातंत्र्य दिन",
+    title: "Sangeet Online — शांत मन",
     description:
       "मराठी संगीत ऐकण्यासाठी एक साधा, सुंदर आणि curated digital experience.",
   },
