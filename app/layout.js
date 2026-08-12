@@ -1,4 +1,5 @@
 import { Arya, Noto_Sans_Devanagari } from "next/font/google";
+import PwaRegister from "@/components/PwaRegister";
 import "./globals.css";
 
 const notoDevanagari = Noto_Sans_Devanagari({
@@ -32,6 +33,18 @@ export const metadata = {
     "sangeet.online",
   ],
   authors: [{ name: "Sangeet Online" }],
+  icons: {
+    icon: [
+      { url: "/favicon.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Sangeet Online",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     type: "website",
     locale: "mr_IN",
@@ -54,7 +67,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#f7f4ef",
+  themeColor: "#2A1248",
   width: "device-width",
   initialScale: 1,
 };
@@ -65,7 +78,10 @@ export default function RootLayout({ children }) {
       lang="mr"
       className={`${notoDevanagari.variable} ${arya.variable} h-full antialiased`}
     >
-      <body className="min-h-full font-sans">{children}</body>
+      <body className="min-h-full font-sans">
+        <PwaRegister />
+        {children}
+      </body>
     </html>
   );
 }
